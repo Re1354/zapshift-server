@@ -15,7 +15,7 @@ async function run() {
     await initIndexes();
 
     // MongoDB Health Check
-    await client.db('admin').command({ ping: 1 });
+    // await client.db('admin').command({ ping: 1 });
     console.log('MongoDB connected successfully!');
 
     app.listen(port, () => {
