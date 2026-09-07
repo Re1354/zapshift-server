@@ -33,6 +33,21 @@ app.get('/', (req, res) => {
   res.send('Zap Shift Server is Running!');
 });
 
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: {
+      has_DB_USER: !!process.env.DB_USER,
+      has_DB_PASS: !!process.env.DB_PASS,
+      has_FB_SERVICE_KEY: !!process.env.FB_SERVICE_KEY,
+      has_STRIPE_PAYMENT_SECRET: !!process.env.STRIPE_PAYMENT_SECRET,
+      client_url: process.env.CLIENT_URL || 'default: http://localhost:5173',
+      is_vercel: !!process.env.VERCEL,
+    },
+  });
+});
+
 // ======================================================
 // API Routes
 // ======================================================

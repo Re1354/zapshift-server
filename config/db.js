@@ -1,32 +1,71 @@
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
+const rawUser = process.env.DB_USER ? process.env.DB_USER.trim().replace(/^["']|["']$/g, '') : '';
+const rawPass = process.env.DB_PASS ? process.env.DB_PASS.trim().replace(/^["']|["']$/g, '') : '';
+const user = encodeURIComponent(rawUser);
+const pass = encodeURIComponent(rawPass);
+
 const directHosts = [
   'ac-aanrsld-shard-00-00.1zqbczf.mongodb.net:27017',
   'ac-aanrsld-shard-00-01.1zqbczf.mongodb.net:27017',
   'ac-aanrsld-shard-00-02.1zqbczf.mongodb.net:27017',
 ].join(',');
 
-const uri =
-  process.env.MONGODB_URI ||
-  `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@${directHosts}/zap_shift_db?ssl=true&authSource=admin&retryWrites=true&w=majority`;
+const defaultUri = process.env.VERCEL
+  ? `mongodb+srv://${user}:${pass}@cluster0.1zqbczf.mongodb.net/zap_shift_db?retryWrites=true&w=majority`
+  : `mongodb://${user}:${pass}@${directHosts}/zap_shift_db?ssl=true&authSource=admin&retryWrites=true&w=majority`;
 
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
+const uri = process.env.MONGODB_URI || defaultUri;
 
-let db;
+let client = null;
+
+const createClient = (connUri) => {
+  return new MongoClient(connUri, {
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+  });
+};
+
+const getClient = () => {
+  if (client) return client;
+  if (!user && !process.env.MONGODB_URI) {
+    throw new Error('Database credentials missing: DB_USER and DB_PASS are required.');
+  }
+  client = createClient(uri);
+  return client;
+};
+
+let db = null;
 
 const connectDB = async () => {
-  if (!db) {
-    await client.connect();
-    db = client.db('zap_shift_db');
+  if (db) return db;
+
+  if (!user && !process.env.MONGODB_URI) {
+    throw new Error('Database credentials missing: DB_USER and DB_PASS are required in environment.');
   }
-  return db;
+
+  const cli = getClient();
+
+  try {
+    await cli.connect();
+    db = cli.db('zap_shift_db');
+    return db;
+  } catch (primaryErr) {
+    console.warn('Primary MongoDB connection failed, attempting fallback...', primaryErr.message);
+    const fallbackUri = uri.includes('mongodb+srv://')
+      ? `mongodb://${user}:${pass}@${directHosts}/zap_shift_db?ssl=true&authSource=admin&retryWrites=true&w=majority`
+      : `mongodb+srv://${user}:${pass}@cluster0.1zqbczf.mongodb.net/zap_shift_db?retryWrites=true&w=majority`;
+
+    const fallbackClient = createClient(fallbackUri);
+    await fallbackClient.connect();
+    client = fallbackClient;
+    db = fallbackClient.db('zap_shift_db');
+    return db;
+  }
 };
 
 const getDB = () => {
@@ -65,11 +104,15 @@ const initIndexes = async () => {
 };
 
 const closeDB = async () => {
-  await client.close();
+  if (client) {
+    await client.close();
+  }
 };
 
 module.exports = {
-  client,
+  get client() {
+    return getClient();
+  },
   connectDB,
   getDB,
   collections,
