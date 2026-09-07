@@ -13,6 +13,109 @@ const getDeliveryStatusStats = async () => {
   return await collections.parcelsCollection.aggregate(pipeline).toArray();
 };
 
+const getUserDashboardStats = async (email) => {
+  const currentUser = await collections.userCollection.findOne({ email });
+
+  if (!currentUser) {
+    return { userNotFound: true };
+  }
+
+  const parcels = await collections.parcelsCollection
+    .find({ userEmail: email })
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  const totalParcels = parcels.length;
+  let totalSpent = 0;
+  let paidCount = 0;
+  let unpaidCount = 0;
+  let deliveredCount = 0;
+  let inTransitCount = 0;
+  let pendingPickupCount = 0;
+
+  const statusCounts = {
+    'pending-pickup': 0,
+    'driver-assigned': 0,
+    'driver-accepted': 0,
+    'picked-up': 0,
+    'in-transit': 0,
+    'delivered': 0,
+    'driver-rejected': 0,
+  };
+
+  const monthlyMap = {};
+
+  parcels.forEach((p) => {
+    const status = p.deliveryStatus || 'pending-pickup';
+    if (statusCounts[status] !== undefined) {
+      statusCounts[status] += 1;
+    } else {
+      statusCounts[status] = 1;
+    }
+
+    const cost = Number(p.cost) || 0;
+    if (p.paymentStatus === 'paid') {
+      paidCount += 1;
+      totalSpent += cost;
+    } else {
+      unpaidCount += 1;
+    }
+
+    if (status === 'delivered') {
+      deliveredCount += 1;
+    } else if (
+      ['in-transit', 'picked-up', 'driver-assigned', 'driver-accepted'].includes(status)
+    ) {
+      inTransitCount += 1;
+    } else if (status === 'pending-pickup') {
+      pendingPickupCount += 1;
+    }
+
+    if (p.createdAt) {
+      const d = new Date(p.createdAt);
+      if (!isNaN(d.getTime())) {
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+        if (!monthlyMap[monthKey]) {
+          monthlyMap[monthKey] = {
+            monthKey,
+            displayMonth: `${monthName} ${String(d.getFullYear()).slice(-2)}`,
+            month: monthName,
+            parcels: 0,
+            spend: 0,
+          };
+        }
+        monthlyMap[monthKey].parcels += 1;
+        monthlyMap[monthKey].spend += cost;
+      }
+    }
+  });
+
+  const monthlyTrends = Object.values(monthlyMap)
+    .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+    .slice(-6);
+
+  const recentParcels = parcels.slice(0, 5);
+
+  const deliveryRate =
+    totalParcels > 0 ? Math.round((deliveredCount / totalParcels) * 100) : 0;
+
+  return {
+    success: true,
+    totalParcels,
+    deliveredCount,
+    inTransitCount,
+    pendingPickupCount,
+    totalSpent,
+    paidCount,
+    unpaidCount,
+    deliveryRate,
+    statusCounts,
+    monthlyTrends,
+    recentParcels,
+  };
+};
+
 const getParcels = async (email, deliveryStatus) => {
   const currentUser = await collections.userCollection.findOne({ email });
 
@@ -232,6 +335,7 @@ const deleteParcel = async (id, decodedEmail) => {
 
 module.exports = {
   getDeliveryStatusStats,
+  getUserDashboardStats,
   getParcels,
   getRiderParcels,
   updateDeliveryStatus,

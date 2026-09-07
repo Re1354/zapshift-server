@@ -14,6 +14,13 @@ router.get(
   parcelController.getDeliveryStatusStats,
 );
 
+// GET USER DASHBOARD STATS — AUTHENTICATED
+router.get(
+  '/user-stats',
+  verifyFireBaseToken,
+  parcelController.getUserDashboardStats,
+);
+
 // GET MY PARCELS — AUTHENTICATED
 router.get('/', verifyFireBaseToken, parcelController.getParcels);
 

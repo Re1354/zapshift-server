@@ -1,11 +1,15 @@
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
+const directHosts = [
+  'ac-aanrsld-shard-00-00.1zqbczf.mongodb.net:27017',
+  'ac-aanrsld-shard-00-01.1zqbczf.mongodb.net:27017',
+  'ac-aanrsld-shard-00-02.1zqbczf.mongodb.net:27017',
+].join(',');
+
 const uri =
-  `mongodb+srv://${process.env.DB_USER}:` +
-  `${process.env.DB_PASS}` +
-  `@cluster0.1zqbczf.mongodb.net/` +
-  `?retryWrites=true&w=majority`;
+  process.env.MONGODB_URI ||
+  `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@${directHosts}/zap_shift_db?ssl=true&authSource=admin&retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
   serverApi: {

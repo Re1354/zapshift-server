@@ -13,6 +13,26 @@ const getDeliveryStatusStats = async (req, res) => {
   }
 };
 
+const getUserDashboardStats = async (req, res) => {
+  try {
+    const email = req.decoded_email;
+    const result = await parcelService.getUserDashboardStats(email);
+
+    if (result.userNotFound) {
+      return res
+        .status(404)
+        .send({ success: false, message: 'User not found.' });
+    }
+
+    res.send(result);
+  } catch (error) {
+    console.error('Get user dashboard stats error:', error.message);
+    res
+      .status(500)
+      .send({ success: false, message: 'Failed to fetch user dashboard stats.' });
+  }
+};
+
 const getParcels = async (req, res) => {
   try {
     const email = req.decoded_email;
@@ -249,6 +269,7 @@ const deleteParcel = async (req, res) => {
 
 module.exports = {
   getDeliveryStatusStats,
+  getUserDashboardStats,
   getParcels,
   getRiderParcels,
   updateDeliveryStatus,
