@@ -6,7 +6,14 @@ const apiLimiter = require('./middlewares/rateLimiter');
 const routes = require('./routes');
 
 const app = express();
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+app.set('trust proxy', 1); // Trust first proxy for Vercel
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://zapshift-client.vercel.app',
+  process.env.CLIENT_URL,
+].filter(Boolean);
 
 // ======================================================
 // Security Middleware
@@ -16,9 +23,16 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: clientUrl,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   }),
 );
 
