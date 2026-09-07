@@ -26,7 +26,10 @@ async function run() {
   }
 }
 
-run();
+// Only listen locally, Vercel manages requests via exported app
+if (!process.env.VERCEL) {
+  run();
+}
 
 // ======================================================
 // Graceful Shutdown

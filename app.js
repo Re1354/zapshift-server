@@ -37,6 +37,17 @@ app.get('/', (req, res) => {
 // API Routes
 // ======================================================
 
+// Ensure DB connection for serverless invocations
+const { connectDB } = require('./config/db');
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('Database connection failed:', err.message);
+  }
+  next();
+});
+
 app.use(routes);
 
 module.exports = app;
