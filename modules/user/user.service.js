@@ -71,6 +71,19 @@ const createUser = async ({ email, displayName, photoURL }) => {
   const userExists = await collections.userCollection.findOne({ email });
 
   if (userExists) {
+    // If user exists but displayName/photoURL was not populated yet (e.g. via self-healing), update it
+    if ((!userExists.displayName && displayName) || (!userExists.photoURL && photoURL)) {
+      await collections.userCollection.updateOne(
+        { email },
+        {
+          $set: {
+            ...(displayName && !userExists.displayName ? { displayName } : {}),
+            ...(photoURL && !userExists.photoURL ? { photoURL } : {}),
+            updatedAt: new Date(),
+          },
+        },
+      );
+    }
     return { alreadyExists: true };
   }
 

@@ -14,10 +14,19 @@ const getDeliveryStatusStats = async () => {
 };
 
 const getUserDashboardStats = async (email) => {
-  const currentUser = await collections.userCollection.findOne({ email });
+  let currentUser = await collections.userCollection.findOne({ email });
 
   if (!currentUser) {
-    return { userNotFound: true };
+    // Self-healing: auto-create user record for authenticated Firebase user if not found yet
+    const newUser = {
+      email,
+      displayName: '',
+      photoURL: '',
+      role: 'user',
+      createdAt: new Date(),
+    };
+    await collections.userCollection.insertOne(newUser);
+    currentUser = newUser;
   }
 
   const parcels = await collections.parcelsCollection
@@ -117,10 +126,19 @@ const getUserDashboardStats = async (email) => {
 };
 
 const getParcels = async (email, deliveryStatus) => {
-  const currentUser = await collections.userCollection.findOne({ email });
+  let currentUser = await collections.userCollection.findOne({ email });
 
   if (!currentUser) {
-    return { userNotFound: true };
+    // Self-healing: auto-create user record for authenticated Firebase user if not found yet
+    const newUser = {
+      email,
+      displayName: '',
+      photoURL: '',
+      role: 'user',
+      createdAt: new Date(),
+    };
+    await collections.userCollection.insertOne(newUser);
+    currentUser = newUser;
   }
 
   const query = {};
@@ -285,9 +303,22 @@ const getParcelById = async (id, decodedEmail) => {
     return { notFound: true };
   }
 
-  const currentUser = await collections.userCollection.findOne({
+  let currentUser = await collections.userCollection.findOne({
     email: decodedEmail,
   });
+
+  if (!currentUser) {
+    const newUser = {
+      email: decodedEmail,
+      displayName: '',
+      photoURL: '',
+      role: 'user',
+      createdAt: new Date(),
+    };
+    await collections.userCollection.insertOne(newUser);
+    currentUser = newUser;
+  }
+
   const isAdmin = currentUser?.role === 'admin';
 
   if (!isAdmin && parcel.userEmail !== decodedEmail) {
