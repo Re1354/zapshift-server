@@ -28,6 +28,10 @@ const createCheckoutSession = async (parcelId, decodedEmail) => {
 
   const amount = Math.round(numericCost * 100);
 
+  // Use env variable with production URL as hardcoded fallback
+  const siteDomain =
+    process.env.SITE_DOMAIN || 'https://zapshift-client.vercel.app';
+
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: [
@@ -45,8 +49,8 @@ const createCheckoutSession = async (parcelId, decodedEmail) => {
     mode: 'payment',
     metadata: { parcelId },
     customer_email: decodedEmail,
-    success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+    success_url: `${siteDomain}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${siteDomain}/dashboard/payment-cancelled`,
   });
 
   return { sessionUrl: session.url };
